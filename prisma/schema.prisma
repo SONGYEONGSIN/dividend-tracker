@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // PENSION, IRP, ISA, GENERAL
+  broker      String   @default("")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+  dividends    Dividend[]
+  snapshots    PortfolioSnapshot[]
+}
+
+model Stock {
+  id       String @id @default(cuid())
+  ticker   String @unique
+  name     String
+  type     String // ETF, STOCK, REIT, BOND
+  sector   String @default("")
+  market   String @default("KR") // KR, US
+  currency String @default("KRW")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  dividends    Dividend[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  accountId    String
+  stockId      String
+  type         String   // BUY, SELL
+  quantity     Float
+  price        Float
+  totalAmount  Float    // KRW basis total
+  exchangeRate Float    @default(1)
+  fee          Float    @default(0)
+  date         DateTime
+  createdAt    DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stock   Stock   @relation(fields: [stockId], references: [id], onDelete: Cascade)
+}
+
+model Dividend {
+  id             String   @id @default(cuid())
+  accountId      String
+  stockId        String
+  amount         Float    // KRW
+  amountOriginal Float    @default(0) // Foreign currency
+  currency       String   @default("KRW")
+  exchangeRate   Float    @default(1)
+  taxAmount      Float    @default(0)
+  date           DateTime
+  createdAt      DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stock   Stock   @relation(fields: [stockId], references: [id], onDelete: Cascade)
+}
+
+model PortfolioSnapshot {
+  id            String   @id @default(cuid())
+  accountId     String
+  totalInvested Float    // Cost basis (투자원금)
+  totalValue    Float    // Market value (평가금액)
+  totalDividend Float    @default(0) // Cumulative dividends
+  returnRate    Float    @default(0) // Return %
+  date          DateTime
+  createdAt     DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+}
